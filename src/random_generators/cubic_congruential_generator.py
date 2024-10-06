@@ -12,10 +12,10 @@ class CubicCongruentialGenerator(Generator):
         self.m = m
 
     def rand(self):
-        rnd_value = (self.a * self.rand_state ** 3 + self.b * self.rand_state ** 2 + self.c * self.rand_state + self.d)
+        rnd_value = (self.a * self.rng_state ** 3 + self.b * self.rng_state ** 2 + self.c * self.rng_state + self.d)
         rnd_value = rnd_value % self.m
         self.rand_state = rnd_value
-        return rnd_value
+        return rnd_value & 1
     
     #Кубический конгруэнтный генератор
     @staticmethod
