@@ -1,10 +1,13 @@
 from src.random_generators.generator import Generator
 from src.random_generators.cubic_congruential_generator import CubicCongruentialGenerator
 from src.random_generators.bbs_generator import BbsGenerator
+from src.random_generators.standart_generator import StandartGenerator
 import os
+import numpy as np
+from src.sequence_tester import SequenceTester
 
 def generate_sequence():
-    generators = [CubicCongruentialGenerator, BbsGenerator]
+    generators = [StandartGenerator, CubicCongruentialGenerator, BbsGenerator]
     for id, generator in enumerate(generators):
         print(f"{id + 1}. {generator.generator_str()}")
     generator_id = int(input("Выберите генератор: ")) - 1    
@@ -50,6 +53,11 @@ if __name__ == "__main__":
         Generator.save_seq("".join(list(map(str, seq))), path)
 
         print(f"Двоичная последовательность длиной {length} была сохранена по пути {path}")
+    print("")
+
+    print("Тестирование последовательностей:")
+    tester = SequenceTester()
+    tester.test_sequence(np.array(seq))
+    print("------------------------------\n")
     
-    # Дописать код из первой лабы (взять у Димы >:3)
     
