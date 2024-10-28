@@ -33,12 +33,22 @@ class CubicCongruentialGenerator(Generator):
         # m = int(input("Введите m: "))
 
 
-        seed = 12345
-        a = 17
-        b = 23
-        c = 31
-        d = 3
-        m = 65535
+        # seed = 12345
+        # a = 17
+        # b = 23
+        # c = 31
+        # d = 3
+        # m = 65535
+
+        seed = 987654321 
+        a = 9301
+        b = 49297
+        c = 233280
+        d = 12345
+        m = (2 ** 31) - 1
+        
+        # Sequence length that works: 1000
+
         cls_instance = cls(seed, a, b, c, d, m)
         return cls_instance
 

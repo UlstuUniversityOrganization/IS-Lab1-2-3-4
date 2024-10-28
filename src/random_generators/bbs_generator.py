@@ -31,9 +31,17 @@ class BbsGenerator(Generator):
         # seed = int(input("Введите seed: "))
         # p = int(input("Введите p: "))
         # q = int(input("Введите q: "))
-        seed = 3
-        p = 11
-        q = 23
+
+        # seed = 3
+        # p = 11
+        # q = 23
+        
+        seed = 8472
+        p = 383
+        q = 503
+        
+        # Sequence length that works: 1000
+
         cls_instance = cls(seed, p, q)
         return cls_instance
 
