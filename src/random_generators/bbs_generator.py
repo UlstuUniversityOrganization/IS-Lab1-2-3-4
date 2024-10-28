@@ -4,7 +4,7 @@ import sympy
 
 class BbsGenerator(Generator):
 
-    def __init__(self, seed, p, q):
+    def __init__(self, seed, p=383, q=503):
         super().__init__(seed)
 
         assert p % 4 == 3

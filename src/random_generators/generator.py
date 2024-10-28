@@ -9,6 +9,9 @@ class Generator():
     def rand(self):
         pass
 
+    def rand_value(self, bits=32):
+        return int("".join(list(map(str, self.rand_seq(bits)))), 2)
+
     @classmethod
     def from_interface(cls):
         seed = int(input("Введите сид генератора: "))
