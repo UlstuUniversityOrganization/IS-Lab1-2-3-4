@@ -7,10 +7,21 @@ class SubstitutionCipher():
         self.generator = generator
 
         substitution_table = list(range(2 ** 16))  # Identity for simplicity
-        random.shuffle(substitution_table)
+        substitution_table = self.__shuffle(substitution_table, self.generator)
 
         self.substitution_table = substitution_table
         self.inv_substitution_table = {v: idx for idx, v in enumerate(self.substitution_table)}
+
+    def __shuffle(self, lst, rng, num_inversions=1000):
+        random.seed(generator.rand_value())
+        random.shuffle(lst)
+        # # n = min(len(lst), num_inversions)
+        # n = len(lst)
+        # for i in range(n - 1, 0, -1):
+        #     # Use the custom RNG to generate a random index for swapping
+        #     j = generator.rand_value() % n
+        #     lst[i], lst[j] = lst[j], lst[i]  # Swap in place
+        return lst  # Now lst is shuffled in place
 
     def encrypt(self, block):
         encrypted = b""
@@ -92,35 +103,35 @@ class BlockCipherCBC():
 # Create the substitution cipher and block cipher in CBC mode
 
 
-generator = FIPSGenerator(234)
+generator = FIPSGenerator(456)
 
 substitution_cipher = SubstitutionCipher(generator)
 block_cipher_cbc = BlockCipherCBC(substitution_cipher)
 
-plaintext = [1, 2, 3, 4, 5, 6]
-print("plaintext: ", bytes(plaintext))
-iv = bytes([0] * 6)
+# plaintext = [1, 2, 3, 4, 5, 6]
+# print("plaintext: ", bytes(plaintext))
+# iv = bytes([0] * 6)
 
-encrypted = substitution_cipher.encrypt(plaintext)
-print("ciphertext: ", encrypted)
+# encrypted = substitution_cipher.encrypt(plaintext)
+# print("ciphertext: ", encrypted)
 
-decrypted = substitution_cipher.decrypt(encrypted)
+# decrypted = substitution_cipher.decrypt(encrypted)
 
-print("decrypted: ", decrypted)
+# print("decrypted: ", decrypted)
 
 
 # Example usage
-# plaintext = b"Hello, world! This is a test."
+plaintext = b"Hello, world! This is a test."
 
-# print("Plaintext: ", plaintext)
+print("Plaintext: ", plaintext)
 
-# iv = bytes([0] * 6)  # Initialization vector (IV) of block size
+iv = bytes([0] * 6)  # Initialization vector (IV) of block size
 
-# # Encrypt
-# ciphertext = block_cipher_cbc.encrypt(plaintext, iv)
-# print("Ciphertext:", ciphertext)
+# Encrypt
+ciphertext = block_cipher_cbc.encrypt(plaintext, iv)
+print("Ciphertext:", ciphertext)
 
-# # Decrypt
-# decrypted = block_cipher_cbc.decrypt(ciphertext, iv)
-# print("Decrypted:", decrypted)  # Remove padding
-# # print("Decrypted:", decrypted.decode().rstrip('\x00'))  # Remove padding
+# Decrypt
+decrypted = block_cipher_cbc.decrypt(ciphertext, iv)
+print("Decrypted:", decrypted)  # Remove padding
+# print("Decrypted:", decrypted.decode().rstrip('\x00'))  # Remove padding
