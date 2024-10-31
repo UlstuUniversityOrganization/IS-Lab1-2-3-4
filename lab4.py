@@ -4,80 +4,176 @@ from PyQt5 import QtWidgets, uic
 from PyQt5.QtWidgets import QFileDialog
 from src.SHA256 import SHA256
 from src.random_generators.fips_generator import FIPSGenerator
+from src.random_generators.bbs_generator import BbsGenerator
 from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QTextEdit, QLabel, QLineEdit, QMessageBox
 from PyQt5.QtCore import Qt
 import numpy as np
+import random
 
-# Матричное шифрование + режим CFB
-class MatrixCipher():
-    def __init__(self, generator, size_matrix=6):
-        self.generator = generator
-        self.block_size = size_matrix
+# # Матричное шифрование + режим CFB
+# class MatrixCipher():
+#     def __init__(self, generator, size_matrix=6):
+#         self.generator = generator
+#         self.block_size = size_matrix
     
-    def reset(self):
-        self.generator.rng_state = self.generator.seed
+#     def reset(self):
+#         self.generator.rng_state = self.generator.seed
 
-    def encrypt_block(self, block):
-        # Применяем матричное шифрование (например, умножение на ключевую матрицу)
-        key_matrix = [self.generator.rand_value() for i in range(self.block_size*self.block_size)]
-        key_matrix = np.array(key_matrix).reshape((self.block_size, self.block_size))
-        encrypted_block = np.dot(key_matrix, block) % 256
-        return encrypted_block.flatten()
+#     def encrypt_block(self, block):
+#         # Применяем матричное шифрование (например, умножение на ключевую матрицу)
+#         key_matrix = [self.generator.rand_value() for i in range(self.block_size*self.block_size)]
+#         key_matrix = np.array(key_matrix).reshape((self.block_size, self.block_size))
+#         encrypted_block = np.dot(key_matrix, block) % 256
+#         return encrypted_block.flatten()
 
-    def decrypt_block(self, block):
-        # Для расшифровки требуется обратная матрица
-        key_matrix = [self.generator.rand_value() for i in range(self.block_size*self.block_size)]
-        key_matrix = np.array(key_matrix).reshape((self.block_size, self.block_size))
-        inv_key_matrix = np.linalg.inv(key_matrix).astype(int) % 256
-        decrypted_block = np.dot(inv_key_matrix, block) % 256
-        return decrypted_block.flatten()
+#     def decrypt_block(self, block):
+#         # Для расшифровки требуется обратная матрица
+#         key_matrix = [self.generator.rand_value() for i in range(self.block_size*self.block_size)]
+#         key_matrix = np.array(key_matrix).reshape((self.block_size, self.block_size))
+#         inv_key_matrix = np.linalg.inv(key_matrix).astype(int) % 256
+#         decrypted_block = np.dot(inv_key_matrix, block) % 256
+#         return decrypted_block.flatten()
 
-class BlockCipher():
-    def __init__(self, matrix_cipher, block_size=6):
+# class BlockCipher():
+#     def __init__(self, matrix_cipher, block_size=6):
+#         self.block_size = block_size
+#         self.matrix_cipher = matrix_cipher
+
+#     def xor_bytes(self, a, b):
+#         return bytes([x ^ y for x, y in zip(a, b)])
+
+#     def encrypt(self, plaintext, iv):
+#         self.matrix_cipher.reset()
+#         encrypted = b""
+#         prev_block = iv
+        
+#         for i in range(0, len(plaintext), self.block_size):
+#             block = plaintext[i:i + self.block_size]
+#             # Дополняем блок нулями, если он меньше размера блоков
+#             if len(block) < self.block_size:
+#                 block = block + [0] * (self.block_size - len(block))
+
+#             # Шифруем предыдущий блок (или IV для первого блока)
+#             keystream = self.matrix_cipher.encrypt_block(np.frombuffer(prev_block, dtype=np.uint8).reshape((self.matrix_cipher.block_size, 1)))
+#             # XOR с текущим блоком
+#             encrypted_block = self.xor_bytes(block, keystream)
+#             encrypted += encrypted_block
+#             # Обновляем предыдущий блок
+#             prev_block = encrypted_block
+            
+#         return encrypted
+
+#     def decrypt(self, ciphertext, iv):
+#         self.matrix_cipher.reset()
+#         decrypted = b""
+#         prev_block = iv
+        
+#         for i in range(0, len(ciphertext), self.block_size):
+#             block = ciphertext[i:i + self.block_size]
+#             # Дополняем блок нулями, если он меньше размера блоков
+#             if len(block) < self.block_size:
+#                 block = block.ljust(self.block_size, b'\0')
+
+#             # Шифруем предыдущий зашифрованный блок
+#             keystream = self.matrix_cipher.encrypt_block(np.frombuffer(prev_block, dtype=np.uint8).reshape((self.matrix_cipher.block_size, 1)))
+#             # XOR с текущим блоком
+#             decrypted_block = self.xor_bytes(block, keystream)
+#             decrypted += decrypted_block
+#             # Обновляем предыдущий блок
+#             prev_block = block
+            
+#         return decrypted
+
+
+class SubstitutionCipher():
+    def __init__(self, generator):
+        self.generator = generator
+
+        substitution_table = list(range(2 ** 16))  # Identity for simplicity
+        substitution_table = self.__shuffle(substitution_table, self.generator)
+
+        self.substitution_table = substitution_table
+        self.inv_substitution_table = {v: idx for idx, v in enumerate(self.substitution_table)}
+
+    def __shuffle(self, lst, rng, num_inversions=1000):
+        random.seed(self.generator.rand_value())
+        random.shuffle(lst)
+        # # n = min(len(lst), num_inversions)
+        # n = len(lst)
+        # for i in range(n - 1, 0, -1):
+        #     # Use the custom RNG to generate a random index for swapping
+        #     j = generator.rand_value() % n
+        #     lst[i], lst[j] = lst[j], lst[i]  # Swap in place
+        return lst  # Now lst is shuffled in place
+
+    def encrypt(self, block):
+        encrypted = b""
+        for i in range(1, len(block), 2):
+            idx = block[i - 1] + block[i] * 256
+            encrypted_bytes = self.substitution_table[idx].to_bytes(2, byteorder='big')
+            encrypted += encrypted_bytes
+
+        return encrypted
+    
+    def decrypt(self, block): 
+        encrypted = b""
+        for i in range(1, len(block), 2):
+            value = int.from_bytes(bytes([block[i - 1], block[i]]))
+            original_value = self.inv_substitution_table[value]
+
+            x = original_value % 256
+            y = original_value // 256
+            
+            encrypted += bytes([x, y])
+
+        return encrypted
+        # return bytes([self.inv_substitution_table[b] for b in block])
+
+
+class BlockCipherCBC():
+    def __init__(self, substitution_cipher, block_size=6):
         self.block_size = block_size
-        self.matrix_cipher = matrix_cipher
+        self.substitution_cipher = substitution_cipher
 
     def xor_bytes(self, a, b):
         return bytes([x ^ y for x, y in zip(a, b)])
 
     def encrypt(self, plaintext, iv):
-        self.matrix_cipher.reset()
         encrypted = b""
         prev_block = iv
         
         for i in range(0, len(plaintext), self.block_size):
             block = plaintext[i:i + self.block_size]
-            # Дополняем блок нулями, если он меньше размера блоков
+            # Pad the block if it's smaller than the block size
             if len(block) < self.block_size:
                 block = block + [0] * (self.block_size - len(block))
 
-            # Шифруем предыдущий блок (или IV для первого блока)
-            keystream = self.matrix_cipher.encrypt_block(np.frombuffer(prev_block, dtype=np.uint8).reshape((self.matrix_cipher.block_size, 1)))
-            # XOR с текущим блоком
-            encrypted_block = self.xor_bytes(block, keystream)
+            # XOR the block with the previous ciphertext block
+            block_to_encrypt = self.xor_bytes(block, prev_block)
+            # Apply substitution
+            encrypted_block = self.substitution_cipher.encrypt(block_to_encrypt)
             encrypted += encrypted_block
-            # Обновляем предыдущий блок
+            # Update previous block
             prev_block = encrypted_block
             
         return encrypted
 
     def decrypt(self, ciphertext, iv):
-        self.matrix_cipher.reset()
         decrypted = b""
         prev_block = iv
         
         for i in range(0, len(ciphertext), self.block_size):
             block = ciphertext[i:i + self.block_size]
-            # Дополняем блок нулями, если он меньше размера блоков
+            # Pad the block if it's smaller than the block size
             if len(block) < self.block_size:
                 block = block.ljust(self.block_size, b'\0')
 
-            # Шифруем предыдущий зашифрованный блок
-            keystream = self.matrix_cipher.encrypt_block(np.frombuffer(prev_block, dtype=np.uint8).reshape((self.matrix_cipher.block_size, 1)))
-            # XOR с текущим блоком
-            decrypted_block = self.xor_bytes(block, keystream)
+            # Apply substitution (this reverses the substitution)
+            block_to_xor = self.substitution_cipher.decrypt(block)
+            # XOR with the previous ciphertext block
+            decrypted_block = self.xor_bytes(block_to_xor, prev_block)
             decrypted += decrypted_block
-            # Обновляем предыдущий блок
+            # Update previous block
             prev_block = block
             
         return decrypted
@@ -124,8 +220,8 @@ class CipherApp(QWidget):
         md4 = SHA256()
         md4.update(password)
         key = int(md4.hexdigest(), 6*6) & 0xFFFFFFFF
-        matrix_cipher = MatrixCipher(FIPSGenerator(key))
-        cipher = BlockCipher(matrix_cipher)
+        matrix_cipher = SubstitutionCipher(BbsGenerator(key))
+        cipher = BlockCipherCBC(matrix_cipher)
         
         iv = b'\x00' * 6
         encrypted = cipher.encrypt(plaintext, iv)
@@ -136,8 +232,8 @@ class CipherApp(QWidget):
         md4 = SHA256()
         md4.update(password)
         key = int(md4.hexdigest(), 6*6) & 0xFFFFFFFF
-        matrix_cipher = MatrixCipher(FIPSGenerator(key))
-        cipher = BlockCipher(matrix_cipher)
+        matrix_cipher = SubstitutionCipher(BbsGenerator(key))
+        cipher = BlockCipherCBC(matrix_cipher)
 
         ciphertext = bytes.fromhex(self.result_text.toPlainText())
         iv = b'\x00' * 6

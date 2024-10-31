@@ -13,7 +13,7 @@ class SubstitutionCipher():
         self.inv_substitution_table = {v: idx for idx, v in enumerate(self.substitution_table)}
 
     def __shuffle(self, lst, rng, num_inversions=1000):
-        random.seed(generator.rand_value())
+        random.seed(self.generator.rand_value())
         random.shuffle(lst)
         # # n = min(len(lst), num_inversions)
         # n = len(lst)
