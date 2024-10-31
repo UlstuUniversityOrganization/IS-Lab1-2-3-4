@@ -1,16 +1,39 @@
+from src.random_generators.fips_generator import FIPSGenerator
 import numpy as np
 import random
 
 class SubstitutionCipher():
-    def __init__(self, substitution_table):
+    def __init__(self, generator):
+        self.generator = generator
+
+        substitution_table = list(range(2 ** 16))  # Identity for simplicity
+        random.shuffle(substitution_table)
+
         self.substitution_table = substitution_table
-        self.inv_substitution_table = {v: idx for idx, v in enumerate(substitution_table)}
+        self.inv_substitution_table = {v: idx for idx, v in enumerate(self.substitution_table)}
 
     def encrypt(self, block):
-        return bytes([self.substitution_table[b] for b in block])
+        encrypted = b""
+        for i in range(1, len(block), 2):
+            idx = block[i - 1] + block[i] * 256
+            encrypted_bytes = self.substitution_table[idx].to_bytes(2, byteorder='big')
+            encrypted += encrypted_bytes
+
+        return encrypted
     
-    def decrypt(self, block):
-        return bytes([self.inv_substitution_table[b] for b in block])
+    def decrypt(self, block): 
+        encrypted = b""
+        for i in range(1, len(block), 2):
+            value = int.from_bytes(bytes([block[i - 1], block[i]]))
+            original_value = self.inv_substitution_table[value]
+
+            x = original_value % 256
+            y = original_value // 256
+            
+            encrypted += bytes([x, y])
+
+        return encrypted
+        # return bytes([self.inv_substitution_table[b] for b in block])
 
 
 class BlockCipherCBC():
@@ -62,38 +85,42 @@ class BlockCipherCBC():
         return decrypted
 
 # Example substitution table (simple example)
-substitution_table = list(range(256))  # Identity for simplicity
-random.shuffle(substitution_table)
+# substitution_table = list(range(256))  # Identity for simplicity
+# random.shuffle(substitution_table)
 # You can modify this table to create a real substitution cipher
 
 # Create the substitution cipher and block cipher in CBC mode
-substitution_cipher = SubstitutionCipher(substitution_table)
+
+
+generator = FIPSGenerator(234)
+
+substitution_cipher = SubstitutionCipher(generator)
 block_cipher_cbc = BlockCipherCBC(substitution_cipher)
 
-# plaintext = [1, 2, 3, 4, 5, 6]
-# print("plaintext: ", bytes(plaintext))
-# iv = bytes([0] * 6)
+plaintext = [1, 2, 3, 4, 5, 6]
+print("plaintext: ", bytes(plaintext))
+iv = bytes([0] * 6)
 
-# encrypted = block_cipher_cbc.encrypt(plaintext, iv)
-# print("ciphertext: ", encrypted)
+encrypted = substitution_cipher.encrypt(plaintext)
+print("ciphertext: ", encrypted)
 
-# decrypted = block_cipher_cbc.decrypt(encrypted, iv)
+decrypted = substitution_cipher.decrypt(encrypted)
 
-# print("decrypted: ", decrypted)
+print("decrypted: ", decrypted)
 
 
 # Example usage
-plaintext = b"Hello, world! This is a test."
+# plaintext = b"Hello, world! This is a test."
 
-print("Plaintext: ", plaintext)
+# print("Plaintext: ", plaintext)
 
-iv = bytes([0] * 6)  # Initialization vector (IV) of block size
+# iv = bytes([0] * 6)  # Initialization vector (IV) of block size
 
-# Encrypt
-ciphertext = block_cipher_cbc.encrypt(plaintext, iv)
-print("Ciphertext:", ciphertext)
+# # Encrypt
+# ciphertext = block_cipher_cbc.encrypt(plaintext, iv)
+# print("Ciphertext:", ciphertext)
 
-# Decrypt
-decrypted = block_cipher_cbc.decrypt(ciphertext, iv)
-print("Decrypted:", decrypted)  # Remove padding
-# print("Decrypted:", decrypted.decode().rstrip('\x00'))  # Remove padding
+# # Decrypt
+# decrypted = block_cipher_cbc.decrypt(ciphertext, iv)
+# print("Decrypted:", decrypted)  # Remove padding
+# # print("Decrypted:", decrypted.decode().rstrip('\x00'))  # Remove padding
