@@ -12,18 +12,18 @@ import random
 
 
 class SubstitutionCipher():
-    def __init__(self, generator, num_columns):
+    def __init__(self, generator):
         self.generator = generator
-        self.num_bytes = 2
-        self.num_rows = (2 ** (self.num_bytes * 8))
-        self.num_columns = num_columns
-        
-        # substitution_table = list(range(2 ** 16))  # Identity for simplicity
-        substitution_table = list(range(self.num_rows * self.num_columns))  # Identity for simplicity
-        substitution_table = self.__shuffle(substitution_table, self.generator) 
+        # self.num_columns = num_columns
+
+        substitution_table = list(range(2 ** 16))  # Identity for simplicity
+        # substitution_table = list(range((2 ** 16) * self.num_columns))  # Identity for simplicity
+        substitution_table = self.__shuffle(substitution_table, self.generator)
+
+    
 
         self.substitution_table = substitution_table
-        self.inv_substitution_table = {v: (idx % self.num_rows) for idx, v in enumerate(self.substitution_table)}
+        self.inv_substitution_table = {v: idx for idx, v in enumerate(self.substitution_table)}
 
     def __shuffle(self, lst, rng, num_inversions=1000):
         random.seed(self.generator.rand_value())
@@ -37,55 +37,31 @@ class SubstitutionCipher():
         return lst  # Now lst is shuffled in place
 
     def encrypt(self, block):
-        
-        # for i in range(1, len(block), 2):
-        #     idx = block[i - 1] + block[i] * 256
-        #     encrypted_bytes = self.substitution_table[idx].to_bytes(2, byteorder='big')
-        #     encrypted += encrypted_bytes
-        value = 0
-        for i in range(0, len(block)):
-            value = (value << 8) | block[i]
-        encrypted_value = self.substitution_table[value + self.num_rows * random.randint(0, self.num_columns - 1)]
-        encrypted = encrypted_value.to_bytes(self.num_bytes*self.num_columns, byteorder='big')
+        encrypted = b""
+        for i in range(1, len(block), 2):
+            idx = block[i - 1] + block[i] * 256
+            encrypted_bytes = self.substitution_table[idx].to_bytes(2, byteorder='big')
+            encrypted += encrypted_bytes
 
         return encrypted
     
     def decrypt(self, block): 
-        # for i in range(1, len(block), 2):
-        #     value = int.from_bytes(bytes([block[i - 1], block[i]]))
-        #     original_value = self.inv_substitution_table[value]
+        encrypted = b""
+        for i in range(1, len(block), 2):
+            value = int.from_bytes(bytes([block[i - 1], block[i]]))
+            original_value = self.inv_substitution_table[value]
 
-        #     x = original_value % 256
-        #     y = original_value // 256
+            x = original_value % 256
+            y = original_value // 256
             
-        #     encrypted += bytes([x, y])
+            encrypted += bytes([x, y])
 
-        value = int.from_bytes(block, byteorder='big')
-        decrypted_row = self.inv_substitution_table[value]
-        decrypted = b""
-
-        for i in range(self.num_bytes):
-            decrypted_value = decrypted_row & 0xFF
-            decrypted_row = decrypted_row >> 8
-
-            decrypted = bytes([decrypted_value]) + decrypted
-        
-
-        # for i in range(1, len(block)):
-        #     value = int.from_bytes(bytes([block[i - 1], block[i]]))
-        #     original_value = self.inv_substitution_table[value]
-
-        #     x = original_value % 256
-        #     y = original_value // 256
-            
-        #     decrypted += bytes([x, y])
-
-        return decrypted
+        return encrypted
         # return bytes([self.inv_substitution_table[b] for b in block])
 
 
 class BlockCipherCBC():
-    def __init__(self, substitution_cipher, block_size=2):
+    def __init__(self, substitution_cipher, block_size=6):
         self.block_size = block_size
         self.substitution_cipher = substitution_cipher
 
@@ -103,34 +79,29 @@ class BlockCipherCBC():
                 block = block + [0] * (self.block_size - len(block))
 
             # XOR the block with the previous ciphertext block
-            
+            block_to_encrypt = self.xor_bytes(block, prev_block)
             # Apply substitution
-            encrypted_block = self.substitution_cipher.encrypt(block)
-            xored_block = self.xor_bytes(encrypted_block, prev_block)
-            encrypted += xored_block
+            encrypted_block = self.substitution_cipher.encrypt(block_to_encrypt)
+            encrypted += encrypted_block
             # Update previous block
-            prev_block = xored_block
+            prev_block = encrypted_block
             
         return encrypted
 
     def decrypt(self, ciphertext, iv):
         decrypted = b""
         prev_block = iv
-
-        decryption_block_size = self.substitution_cipher.num_bytes * self.substitution_cipher.num_columns
         
-        for i in range(0, len(ciphertext), decryption_block_size):
-            block = ciphertext[i:i + decryption_block_size]
+        for i in range(0, len(ciphertext), self.block_size):
+            block = ciphertext[i:i + self.block_size]
             # Pad the block if it's smaller than the block size
-            if len(block) < decryption_block_size:
-                block = block.ljust(decryption_block_size, b'\0')
+            if len(block) < self.block_size:
+                block = block.ljust(self.block_size, b'\0')
 
-            xored_block = self.xor_bytes(block, prev_block)
-            
             # Apply substitution (this reverses the substitution)
-            decrypted_block = self.substitution_cipher.decrypt(xored_block)
+            block_to_xor = self.substitution_cipher.decrypt(block)
             # XOR with the previous ciphertext block
-            # decrypted_block = self.xor_bytes(block_to_xor, prev_block)
+            decrypted_block = self.xor_bytes(block_to_xor, prev_block)
             decrypted += decrypted_block
             # Update previous block
             prev_block = block
@@ -143,8 +114,6 @@ class CipherApp(QWidget):
     def __init__(self):
         super().__init__()
         self.init_ui()
-        self.num_columns = 3
-        
 
     def init_ui(self):
         layout = QVBoxLayout()
@@ -181,10 +150,10 @@ class CipherApp(QWidget):
         md4 = SHA256()
         md4.update(password)
         key = int(md4.hexdigest(), 6*6) & 0xFFFFFFFF
-        matrix_cipher = SubstitutionCipher(BbsGenerator(key), self.num_columns)
+        matrix_cipher = SubstitutionCipher(BbsGenerator(key))
         cipher = BlockCipherCBC(matrix_cipher)
         
-        iv = b'\x00' * (matrix_cipher.num_bytes * matrix_cipher.num_columns)
+        iv = b'\x00' * 6
         encrypted = cipher.encrypt(plaintext, iv)
         self.result_text.setText(f"{encrypted.hex()}")
 
@@ -193,7 +162,7 @@ class CipherApp(QWidget):
         md4 = SHA256()
         md4.update(password)
         key = int(md4.hexdigest(), 6*6) & 0xFFFFFFFF
-        matrix_cipher = SubstitutionCipher(BbsGenerator(key), self.num_columns)
+        matrix_cipher = SubstitutionCipher(BbsGenerator(key))
         cipher = BlockCipherCBC(matrix_cipher)
         
         try: 
@@ -201,12 +170,12 @@ class CipherApp(QWidget):
         except:
             QMessageBox.critical(self, "Ошибка", "Не удалось расшифровать - данные не являются зашифрованным текстом.")
             return
-        iv = b'\x00' * (matrix_cipher.num_bytes * matrix_cipher.num_columns)
+        iv = b'\x00' * 6
         decrypted = cipher.decrypt(ciphertext, iv)
         try:
             self.result_text.setText(f"{decrypted.decode()}")
         except:
-            QMessageBox.critical(self, "Ошибка", "Не удалось расшифровать - неверный ключ.\n\n Расшифрованный текст должен представлять из себя последовательность байт, формирующих текст в utf-8 кодировке. Однако, полученная последовательность байт не представляет из себя utf-8 кодировку.")
+            QMessageBox.critical(self, "Ошибка", "Не удалось расшифровать - неверный ключ.")
 
     def load_file(self):
         options = QFileDialog.Options()
