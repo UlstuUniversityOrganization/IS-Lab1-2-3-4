@@ -196,7 +196,7 @@ class CipherApp(QWidget):
         matrix_cipher = SubstitutionCipher(BbsGenerator(key), self.num_columns)
         cipher = BlockCipherCBC(matrix_cipher)
         
-        try: 
+        try:
             ciphertext = bytes.fromhex(self.result_text.toPlainText())
         except:
             QMessageBox.critical(self, "Ошибка", "Не удалось расшифровать - данные не являются зашифрованным текстом.")
